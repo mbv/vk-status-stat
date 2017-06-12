@@ -2,24 +2,31 @@ package main
 
 import (
 	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"time"
 )
 
 type User struct {
-	gorm.Model
-	VkId uint
+	ID        uint `gorm:"primary_key"`
+	VkId      uint
 	FirstName string
-	LastName string
-	Tracked bool
+	LastName  string
+	Tracked   bool
+	CreatedAt time.Time
 }
 
 type Friend struct {
-	gorm.Model
-
+	ID        uint `gorm:"primary_key"`
+	User      User
+	UserID    uint
+	Friend    User
+	FriendID  uint
+	status    uint
+	CreatedAt time.Time
 }
 
 func main() {
-	db, err := gorm.Open("sqlite3", "test.db")
+	db, err := gorm.Open("postgres", "host=localhost user=vk_status_stat_user dbname=vk_status_stat_dev sslmode=disable password=12345678")
 	if err != nil {
 		panic("failed to connect database")
 	}
@@ -33,7 +40,7 @@ func main() {
 
 	// Read
 	var product User
-	db.First(&product, 1) // find product with id 1
+	db.First(&product, 1)                         // find product with id 1
 	db.First(&product, "first_name = ?", "L1212") // find product with code l1212
 
 	// Update - update product's price to 2000
