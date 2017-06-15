@@ -9,9 +9,37 @@ import (
 	"log"
 	"net/url"
 	"strings"
+	"models"
 )
 
+type User struct {
+	Id         uint
+	First_name string
+	Last_name  string
+	Online     int64
+	Last_seen struct {
+		Time int64
+	}
+}
+type Friend struct {
+	Id         uint
+	First_name string
+	Last_name  string
+}
+type Friends struct {
+	//Count int64
+	Items []Friend
+}
+type responseUser struct {
+	Users []User `json:"responseUser"`
+}
+type responseFriend struct {
+	Friends Friends `json:"responseUser"`
+}
+
 func main() {
+	models.OpenConnection()
+	defer CloseConnection()
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
@@ -27,9 +55,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	userIds := []string{
-		"102831893", "87854589", "69971049",
-	}
+	userIds := GetTrackedUserIds()
+
 	fields := []string{
 		"online", "last_seen",
 	}
@@ -65,35 +92,16 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	type User struct {
-		Id         int64
-		First_name string
-		Last_name  string
-		Online     int64
-		Last_seen struct {
-			Time int64
-		}
-	}
-	type Friend struct {
-		Id         int64
-		First_name string
-		Last_name  string
-	}
-	type Friends struct {
-		//Count int64
-		Items []Friend
-	}
-	type response struct {
-		Users []User `json:"response"`
-	}
-	type response1 struct {
-		Friends Friends `json:"response"`
-	}
-	var v response
+
+	var v responseUser
 	err = json.Unmarshal(text, &v)
 	if err != nil {
 		fmt.Println(err)
 		return
+	}
+
+	for _, user := range v.Users {
+		SetUserOnline(user.Id, user)
 	}
 	fmt.Println(v)
 
