@@ -11,8 +11,7 @@ import (
 )
 
 type UserModel struct {
-	ID        uint `gorm:"primary_key"`
-	VkId      uint
+	Id      uint `gorm:"primary_key"`
 	FirstName string
 	LastName  string
 	Tracked   bool
@@ -69,6 +68,8 @@ func OpenConnection() {
 	if err != nil {
 		log.Fatal("failed to connect database")
 	}
+	dbConnection.AutoMigrate(&UserModel{}, &FriendModel{}, &OnlineModel{})
+	//dbConnection.Create(&UserModel{Id:102831893, Tracked:true})
 }
 
 func CloseConnection() {
@@ -77,10 +78,10 @@ func CloseConnection() {
 
 func GetTrackedUserIds() []string {
 	var users []UserModel
-	dbConnection.Select("vk_id").Find(&users, UserModel{Tracked: true})
+	dbConnection.Select("id").Find(&users, UserModel{Tracked: true})
 	userIds := []string{}
 	for _, user := range users {
-		userIds = append(userIds, strconv.FormatUint(uint64(user.VkId), 10))
+		userIds = append(userIds, strconv.FormatUint(uint64(user.Id), 10))
 	}
 	return userIds
 }
@@ -118,21 +119,32 @@ func UpdateFriends(user_id uint, friends []Friend) {
 	needDelete := oldFriends.Difference(newFriends)
 
 	timeCr := time.Now().UTC()
-	var userIds []uint
+	var userVkIds []uint
 	for _, friend := range needAdd.ToSlice() {
 		err := dbConnection.Create(&FriendModel{UserID: user_id, FriendID: friend.(uint), Status: 1, CreatedAt: timeCr})
 		fmt.Println(err)
-		userIds = append(userIds, uint(friend))
+		userVkIds = append(userVkIds, friend.(uint))
 	}
 	for _, friend := range needDelete.ToSlice() {
 		err := dbConnection.Create(&FriendModel{UserID: user_id, FriendID: friend.(uint), Status: 0, CreatedAt: timeCr})
 		fmt.Println(err)
 	}
 	//check users
-	var users []UserModel
-	dbConnection.Find(&users, userIds)
+	var userModels []UserModel
+	dbConnection.Find(&userModels, userVkIds)
+	usersInDb:= mapset.NewSet()
+	for _, user := range userModels {
+		usersInDb.Add(user.Id)
+	}
 
-	fmt.Println(users)
+	needAddUsers := needAdd.Difference(usersInDb)
+	for _, friend := range friends {
+		if needAddUsers.Contains(friend.Id) {
+			err := dbConnection.Create(&UserModel{Id: friend.Id, FirstName: friend.First_name, LastName: friend.Last_name, Tracked: false})
+			fmt.Println(err)
+		}
+	}
+	fmt.Println(usersInDb)
 
 	fmt.Println(needAdd)
 	fmt.Println(needDelete)
