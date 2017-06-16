@@ -7,6 +7,7 @@ import (
 	"time"
 	"strconv"
 	"fmt"
+	"log"
 )
 
 type UserModel struct {
@@ -66,10 +67,8 @@ func OpenConnection() {
 	var err error
 	dbConnection, err = gorm.Open("postgres", "host=localhost user=vk_status_stat_user dbname=vk_status_stat_dev sslmode=disable password=12345678")
 	if err != nil {
-		panic("failed to connect database")
+		log.Fatal("failed to connect database")
 	}
-	//dbConnection.AutoMigrate(&UserModel{}, &FriendModel{}, &OnlineModel{})
-	//dbConnection.Create(&UserModel{VkId: 102831893})
 }
 
 func CloseConnection() {
@@ -90,26 +89,19 @@ func SetUserOnline(user_id uint, user User) {
 	var online OnlineModel
 	last_seen_time := time.Unix(user.Last_seen.Time, 0)
 	if !dbConnection.Order("created_at desc").First(&online, OnlineModel{UserID: user_id}).RecordNotFound() {
-		if online.Status == 1 && user.Online == 0 {
-			err := dbConnection.Create(&OnlineModel{UserID: user_id, Status: 0, CreatedAt: last_seen_time}).Error
-			fmt.Println(err)
-		} else if online.Status == 0 && user.Online == 1 {
-			err := dbConnection.Create(&OnlineModel{UserID: user_id, Status: 1, CreatedAt: last_seen_time}).Error
+		if online.Status != uint(user.Online) {
+			err := dbConnection.Create(&OnlineModel{UserID: user_id, Status: uint(user.Online), CreatedAt: last_seen_time}).Error
 			fmt.Println(err)
 		}
 	} else
 	{
-		var status uint = 1
-		if user.Online == 0 {
-			status = 0
-		}
-		err := dbConnection.Create(&OnlineModel{UserID: user_id, Status: status, CreatedAt: last_seen_time}).Error
+		err := dbConnection.Create(&OnlineModel{UserID: user_id, Status: uint(user.Online), CreatedAt: last_seen_time}).Error
 		fmt.Println(err)
 	}
 
 }
 
-func UpdateFriends(user_id uint, friends []Friend)  {
+func UpdateFriends(user_id uint, friends []Friend) {
 	var friendModels []FriendModel
 	oldFriends := mapset.NewSet()
 	if !dbConnection.Select("friend_id").Order("created_at desc").Group("friend_id, created_at").Find(&friendModels, FriendModel{UserID: user_id}).RecordNotFound() {
@@ -126,39 +118,22 @@ func UpdateFriends(user_id uint, friends []Friend)  {
 	needDelete := oldFriends.Difference(newFriends)
 
 	timeCr := time.Now().UTC()
-
+	var userIds []uint
 	for _, friend := range needAdd.ToSlice() {
-		err := dbConnection.Create(&FriendModel{UserID:user_id, FriendID:friend.(uint), Status:1, CreatedAt:timeCr})
+		err := dbConnection.Create(&FriendModel{UserID: user_id, FriendID: friend.(uint), Status: 1, CreatedAt: timeCr})
 		fmt.Println(err)
+		userIds = append(userIds, uint(friend))
 	}
 	for _, friend := range needDelete.ToSlice() {
-		err := dbConnection.Create(&FriendModel{UserID:user_id, FriendID:friend.(uint), Status:0, CreatedAt:timeCr})
+		err := dbConnection.Create(&FriendModel{UserID: user_id, FriendID: friend.(uint), Status: 0, CreatedAt: timeCr})
 		fmt.Println(err)
 	}
+	//check users
+	var users []UserModel
+	dbConnection.Find(&users, userIds)
+
+	fmt.Println(users)
 
 	fmt.Println(needAdd)
 	fmt.Println(needDelete)
 }
-
-/*// Migrate the schema
-db.AutoMigrate(&UserModel{}, &FriendModel{})
-
-
-
-
-	
-// Create
-db.Create(&UserModel{FirstName: "L1212"})
-
-
-
-// Read
-var product UserModel
-db.First(&product, 1)                         // find product with id 1
-db.First(&product, "first_name = ?", "L1212") // find product with code l1212
-
-// Update - update product's price to 2000
-db.Model(&product).Update("Price", 2000)
-
-// Delete - delete product
-//db.Delete(&product)*/
