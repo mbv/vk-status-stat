@@ -103,6 +103,13 @@ func SetUserOnline(user User) {
 		if online.Status != uint(user.Online) {
 			err := dbConnection.Create(&onlineModel).Error
 			fmt.Println(err)
+		} else if online.Status == 0 && last_seen_time.After(online.ChangedAt) {
+			onlineModel = OnlineModel{UserID: user.Id, Status: 1, ChangedAt: last_seen_time}
+			err := dbConnection.Create(&onlineModel).Error
+			fmt.Println(err)
+			onlineModel = OnlineModel{UserID: user.Id, Status: 0, ChangedAt: last_seen_time}
+			err = dbConnection.Create(&onlineModel).Error
+			fmt.Println(err)
 		}
 	} else {
 		err := dbConnection.Create(&onlineModel).Error
