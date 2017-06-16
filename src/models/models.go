@@ -32,7 +32,7 @@ type OnlineModel struct {
 	User      UserModel
 	UserID    uint
 	Status    uint
-	CreatedAt time.Time
+	ChangedAt time.Time
 }
 
 type FieldChangeModel struct {
@@ -98,7 +98,7 @@ func GetTrackedUserIds() []string {
 func SetUserOnline(user User) {
 	var online OnlineModel
 	last_seen_time := time.Unix(user.Last_seen.Time, 0)
-	var onlineModel = OnlineModel{UserID: user.Id, Status: uint(user.Online), CreatedAt: last_seen_time}
+	var onlineModel = OnlineModel{UserID: user.Id, Status: uint(user.Online), ChangedAt: last_seen_time}
 	if !dbConnection.Order("created_at desc").First(&online, OnlineModel{UserID: user.Id}).RecordNotFound() {
 		if online.Status != uint(user.Online) {
 			err := dbConnection.Create(&onlineModel).Error
