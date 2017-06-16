@@ -16,6 +16,9 @@ import (
 var METHOD_USER_GET = "users.get"
 var METHOD_FRIENDS_GET = "friends.get"
 
+var ACCESS_TOKEN = "b6c7d77ab6c7d77ab6c7d77a55b69b4be3bb6c7b6c7d77aeffb36e5c2305e428ee15bd7"
+var API_VERSION = "5.65"
+
 func main() {
 	models.OpenConnection()
 	defer models.CloseConnection()
@@ -30,11 +33,6 @@ func main() {
 	params.Add("user_ids", strings.Join(userIds, ","))
 	params.Add("fields", strings.Join(fields, ","))
 
-
-
-
-	//url := "?user_ids=102831893,111&fields=online,last_seen&access_token=b6c7d77ab6c7d77ab6c7d77a55b69b4be3bb6c7b6c7d77aeffb36e5c2305e428ee15bd7&v=5.65"
-	//url := "https://api.vk.com/method/friends.get?user_id=102831893&fields=first_name,last_name&access_token=b6c7d77ab6c7d77ab6c7d77a55b69b4be3bb6c7b6c7d77aeffb36e5c2305e428ee15bd7&v=5.65"
 	var v models.ResponseUser
 	err := json.Unmarshal(makeApiRequest(METHOD_USER_GET, &params), &v)
 	if err != nil {
@@ -42,18 +40,16 @@ func main() {
 	}
 
 	for _, user := range v.Users {
-		models.SetUserOnline(user.Id, user)
+		models.SetUserOnline(user)
+		models.CheckFieldsChange(user)
 		updateFriendsRequest(user.Id)
 	}
 	fmt.Println(v)
-
-
-
 }
 
 func updateFriendsRequest(user_id uint) {
 	fields := []string{
-		"online", "last_seen",
+		"first_name", "last_name",
 	}
 
 	params := url.Values{}
@@ -85,11 +81,8 @@ func makeApiRequest(method string, params *url.Values) []byte {
 		log.Fatal(err)
 	}
 
-	accessToken := "b6c7d77ab6c7d77ab6c7d77a55b69b4be3bb6c7b6c7d77aeffb36e5c2305e428ee15bd7"
-	apiVersion := "5.65"
-
-	params.Add("access_token", accessToken)
-	params.Add("v", apiVersion)
+	params.Add("access_token", ACCESS_TOKEN)
+	params.Add("v", API_VERSION)
 
 	baseUrl.RawQuery = params.Encode()
 

@@ -11,7 +11,7 @@ import (
 )
 
 type UserModel struct {
-	Id      uint `gorm:"primary_key"`
+	Id        uint `gorm:"primary_key"`
 	FirstName string
 	LastName  string
 	Tracked   bool
@@ -33,6 +33,15 @@ type OnlineModel struct {
 	UserID    uint
 	Status    uint
 	CreatedAt time.Time
+}
+
+type FieldChangeModel struct {
+	ID          uint `gorm:"primary_key"`
+	User        UserModel
+	UserID      uint
+	Field       string
+	ValueBefore string
+	CreatedAt   time.Time
 }
 
 type User struct {
@@ -68,7 +77,7 @@ func OpenConnection() {
 	if err != nil {
 		log.Fatal("failed to connect database")
 	}
-	dbConnection.AutoMigrate(&UserModel{}, &FriendModel{}, &OnlineModel{})
+	dbConnection.AutoMigrate(&UserModel{}, &FriendModel{}, &OnlineModel{}, &FieldChangeModel{})
 	//dbConnection.Create(&UserModel{Id:102831893, Tracked:true})
 }
 
@@ -86,20 +95,45 @@ func GetTrackedUserIds() []string {
 	return userIds
 }
 
-func SetUserOnline(user_id uint, user User) {
+func SetUserOnline(user User) {
 	var online OnlineModel
 	last_seen_time := time.Unix(user.Last_seen.Time, 0)
-	if !dbConnection.Order("created_at desc").First(&online, OnlineModel{UserID: user_id}).RecordNotFound() {
+	var onlineModel = OnlineModel{UserID: user.Id, Status: uint(user.Online), CreatedAt: last_seen_time}
+	if !dbConnection.Order("created_at desc").First(&online, OnlineModel{UserID: user.Id}).RecordNotFound() {
 		if online.Status != uint(user.Online) {
-			err := dbConnection.Create(&OnlineModel{UserID: user_id, Status: uint(user.Online), CreatedAt: last_seen_time}).Error
+			err := dbConnection.Create(&onlineModel).Error
 			fmt.Println(err)
 		}
-	} else
-	{
-		err := dbConnection.Create(&OnlineModel{UserID: user_id, Status: uint(user.Online), CreatedAt: last_seen_time}).Error
+	} else {
+		err := dbConnection.Create(&onlineModel).Error
 		fmt.Println(err)
 	}
+}
 
+func CheckFieldsChange(user User) {
+	var userModel UserModel
+	if !dbConnection.First(&userModel, user.Id).RecordNotFound() {
+		timeCr := time.Now().UTC()
+		if userModel.FirstName != user.First_name {
+			dbConnection.Create(&FieldChangeModel{
+				UserID:      user.Id,
+				Field:       "FirstName",
+				ValueBefore: userModel.FirstName,
+				CreatedAt:   timeCr,
+			})
+			userModel.FirstName = user.First_name
+		}
+		if userModel.LastName != user.Last_name {
+			dbConnection.Create(&FieldChangeModel{
+				UserID:      user.Id,
+				Field:       "LastName",
+				ValueBefore: userModel.LastName,
+				CreatedAt:   timeCr,
+			})
+			userModel.LastName = user.Last_name
+		}
+		dbConnection.Save(&userModel)
+	}
 }
 
 func UpdateFriends(user_id uint, friends []Friend) {
@@ -132,7 +166,7 @@ func UpdateFriends(user_id uint, friends []Friend) {
 	//check users
 	var userModels []UserModel
 	dbConnection.Find(&userModels, userVkIds)
-	usersInDb:= mapset.NewSet()
+	usersInDb := mapset.NewSet()
 	for _, user := range userModels {
 		usersInDb.Add(user.Id)
 	}
