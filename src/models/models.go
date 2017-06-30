@@ -147,8 +147,7 @@ func UpdateFriends(user_id uint, friends []Friend) {
 	var friendModels []FriendModel
 	oldFriends := mapset.NewSet()
 
-	if !dbConnection.Exec("SELECT friend_id, status FROM (SELECT friend_id, status, row_number() OVER (PARTITION BY friend_id ORDER BY created_at desc) AS log_rank FROM friend_models WHERE user_id = ?) as sub_query WHERE log_rank = 1;", user_id).Scan(&friendModels).RecordNotFound() {
-		fmt.Print()
+	if !dbConnection.Raw("SELECT friend_id, status FROM (SELECT friend_id, status, row_number() OVER (PARTITION BY friend_id ORDER BY created_at desc) AS log_rank FROM friend_models WHERE user_id = ?) as sub_query WHERE log_rank = 1;", user_id).Scan(&friendModels).RecordNotFound() {
 		for _, friend := range friendModels {
 			if friend.Status == 1 {
 				oldFriends.Add(friend.FriendID)
