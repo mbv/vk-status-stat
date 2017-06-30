@@ -139,7 +139,8 @@ func CheckFieldsChange(user User) {
 func UpdateFriends(user_id uint, friends []Friend) {
 	var friendModels []FriendModel
 	oldFriends := mapset.NewSet()
-	if !dbConnection.Select("friend_id").Order("created_at desc").Group("friend_id, created_at").Find(&friendModels, FriendModel{UserID: user_id}).RecordNotFound() {
+
+	if !dbConnection.Exec("SELECT friend_id, status FROM (SELECT friend_id, status, row_number() OVER (PARTITION BY friend_id ORDER BY created_at desc) AS log_rank FROM friend_models WHERE user_id = ?) as sub_query WHERE log_rank = 1;", user_id).Scan(&friendModels).RecordNotFound() {
 		fmt.Print()
 		for _, friend := range friendModels {
 			oldFriends.Add(friend.FriendID)
