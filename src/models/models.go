@@ -99,9 +99,16 @@ func SetUserOnline(user User) {
 	var online OnlineModel
 	last_seen_time := time.Unix(user.Last_seen.Time, 0)
 	var onlineModel = OnlineModel{UserID: user.Id, Status: uint(user.Online), ChangedAt: last_seen_time}
-	if !dbConnection.Order("created_at desc").First(&online, OnlineModel{UserID: user.Id}).RecordNotFound() {
+	if !dbConnection.Order("changed_at desc").First(&online, OnlineModel{UserID: user.Id}).RecordNotFound() {
 		if online.Status != uint(user.Online) {
 			err := dbConnection.Create(&onlineModel).Error
+			fmt.Println(err)
+		} else if online.Status == 0 && last_seen_time.After(online.ChangedAt) {
+			onlineModel = OnlineModel{UserID: user.Id, Status: 1, ChangedAt: last_seen_time}
+			err := dbConnection.Create(&onlineModel).Error
+			fmt.Println(err)
+			onlineModel = OnlineModel{UserID: user.Id, Status: 0, ChangedAt: last_seen_time}
+			err = dbConnection.Create(&onlineModel).Error
 			fmt.Println(err)
 		}
 	} else {
@@ -143,7 +150,9 @@ func UpdateFriends(user_id uint, friends []Friend) {
 	if !dbConnection.Exec("SELECT friend_id, status FROM (SELECT friend_id, status, row_number() OVER (PARTITION BY friend_id ORDER BY created_at desc) AS log_rank FROM friend_models WHERE user_id = ?) as sub_query WHERE log_rank = 1;", user_id).Scan(&friendModels).RecordNotFound() {
 		fmt.Print()
 		for _, friend := range friendModels {
-			oldFriends.Add(friend.FriendID)
+			if friend.Status == 1 {
+				oldFriends.Add(friend.FriendID)
+			}
 		}
 	}
 	newFriends := mapset.NewSet()
