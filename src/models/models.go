@@ -99,7 +99,7 @@ func SetUserOnline(user User) {
 	var online OnlineModel
 	last_seen_time := time.Unix(user.Last_seen.Time, 0)
 	var onlineModel = OnlineModel{UserID: user.Id, Status: uint(user.Online), ChangedAt: last_seen_time}
-	if !dbConnection.Order("changed_at desc").First(&online, OnlineModel{UserID: user.Id}).RecordNotFound() {
+	if !dbConnection.Order("changed_at desc, id desc").First(&online, OnlineModel{UserID: user.Id}).RecordNotFound() {
 		if online.Status != uint(user.Online) {
 			err := dbConnection.Create(&onlineModel).Error
 			fmt.Println(err)
