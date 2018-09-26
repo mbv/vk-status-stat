@@ -25,6 +25,8 @@ func main() {
 
 	userIds := models.GetTrackedUserIds()
 
+	fmt.Println(userIds)
+
 	fields := []string{
 		"online", "last_seen",
 	}

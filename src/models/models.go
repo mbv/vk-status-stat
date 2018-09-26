@@ -73,7 +73,7 @@ var dbConnection *gorm.DB
 
 func OpenConnection() {
 	var err error
-	dbConnection, err = gorm.Open("postgres", "host=localhost user=vk_status_stat_user dbname=vk_status_stat_dev sslmode=disable password=12345678")
+	dbConnection, err = gorm.Open("postgres", "host=vk-status-db user=pguser dbname=pgdb sslmode=disable password=pgpass")
 	if err != nil {
 		log.Fatal("failed to connect database")
 	}
